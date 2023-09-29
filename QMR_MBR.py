@@ -9,10 +9,48 @@ from windows_config import JSON_FILE_PATH, REPORT_FILE_PATH, JQL_QUERIES_FILE_PA
 
 class JiraReportGenerator:
     def __init__(self, api_url, auth, json_file_path):
+
         self.api_url = api_url
         self.auth = auth
         self.json_file_path = json_file_path
         self.regression_data = []
+
+    def  calculate_overall_metrics(self, report_layout):
+        priorities = ['Blocker', 'Critical', 'Others']
+
+        # Initialize overall values
+        overall_resolved = 0
+        overall_bugs_raised = 0
+        overall_noise_issues = 0
+        overall_fixed_issues = 0
+        overall_gerrit_issues = 0
+
+        for priority in priorities:
+            # Calculate overall resolved issues and bugs raised
+            overall_resolved += report_layout.loc['Resolved', ('Regression', priority)] + report_layout.loc['Resolved', ('Exploratory', priority)]
+            overall_bugs_raised += report_layout.loc['BugsRaised', ('Regression', priority)] + report_layout.loc['BugsRaised', ('Exploratory', priority)]
+
+            # Calculate overall noise issues
+            overall_noise_issues += report_layout.loc['Noise', ('Regression', priority)] + report_layout.loc['Noise', ('Exploratory', priority)]
+
+            # Calculate overall fixed issues and gerrit issues
+            overall_fixed_issues += report_layout.loc['Fixed', ('Regression', priority)] + report_layout.loc['Fixed', ('Exploratory', priority)]
+            overall_gerrit_issues += report_layout.loc['GerritFix', ('Regression', priority)] + report_layout.loc['GerritFix', ('Exploratory', priority)]
+
+        # Calculate overall percentages using overall values
+        overall_noise_percentage = (overall_noise_issues / overall_resolved) * 100
+        overall_fixed_percentage = (overall_fixed_issues / overall_resolved) * 100
+        overall_gerrit_percentage = (overall_gerrit_issues / overall_resolved) * 100
+
+        # Calculate overall resolution percentage using overall values
+        overall_resolution_percentage = (overall_resolved / overall_bugs_raised) * 100
+
+        # Set the overall percentages in the report_layout under the "Overall" category for each priority
+        for priority in priorities:
+            report_layout.loc["Noise%", ('Overall')] = f"{overall_noise_percentage:.2f}%"
+            report_layout.loc["Fixed%", ('Overall')] = f"{overall_fixed_percentage:.2f}%"
+            report_layout.loc["Gerrit%", ('Overall')] = f"{overall_gerrit_percentage:.2f}%"
+            report_layout.loc["Resolution%", ('Overall')] = f"{overall_resolution_percentage:.2f}%"
 
     def fetch_and_sort_data(self, jql_query):
         try:
@@ -104,27 +142,39 @@ class JiraReportGenerator:
         return success
     
     def calculate_metrics(self, report_layout):
+
+
         priorities = ['Blocker', 'Critical', 'Others']
         possible_resolutions = [
             "Fixed", "Done", "Completed", "Resolved", "Verified", 
             "Implemented", "Closed", "Cannot Reproduce", "Duplicate"
         ]
+
         for priority in priorities:
             noise_issues = report_layout.loc['Noise', ('Regression', priority)]
             resolved_issues = report_layout.loc['Resolved', ('Regression', priority)]
 
-            noise_percentage = (noise_issues / resolved_issues) * 100
-            report_layout.loc["Noise%", ('Regression', priority)] = noise_percentage
+            # Check if the denominator is not zero before calculating noise_percentage
+            if resolved_issues != 0:
+                noise_percentage = (noise_issues / resolved_issues) * 100
+                report_layout.loc["Noise%", ('Regression', priority)] = f"{noise_percentage:.2f}%"
+            else:
+                report_layout.loc["Noise%", ('Regression', priority)] = '0.0%'  # Set to 0 if no resolved issues
 
             fixed_issues = report_layout.loc['Fixed', ('Regression', priority)]
             resolved_issues = report_layout.loc['Resolved', ('Regression', priority)]
             gerrit_issues = report_layout.loc['GerritFix', ('Regression', priority)]
 
-            fixed_percentage = (fixed_issues / resolved_issues) * 100
-            gerrit_percentage = (gerrit_issues / resolved_issues) * 100
+            # Check if the denominator is not zero before calculating percentages
+            if resolved_issues != 0:
+                fixed_percentage = (fixed_issues / resolved_issues) * 100
+                gerrit_percentage = (gerrit_issues / resolved_issues) * 100
 
-            report_layout.loc["Fixed%", ('Regression', priority)] = f"{fixed_percentage:.2f}%"   #fixed_percentage
-            report_layout.loc["Gerrit%", ('Regression', priority)] = f"{gerrit_percentage:.2f}%"  #gerrit_percentage
+                report_layout.loc["Fixed%", ('Regression', priority)] = f"{fixed_percentage:.2f}%"   # Fixed%
+                report_layout.loc["Gerrit%", ('Regression', priority)] = f"{gerrit_percentage:.2f}%"  # Gerrit%
+            else:
+                report_layout.loc["Fixed%", ('Regression', priority)] = '0.0%'  # Set to '0%' if no resolved issues
+                report_layout.loc["Gerrit%", ('Regression', priority)] = '0.0%'  # Set to '0%' if no resolved issues
 
             # Calculate Resolution% as Resolved / BugsRaised
             bugs_raised = report_layout.loc['BugsRaised', ('Regression', priority)]
@@ -138,23 +188,33 @@ class JiraReportGenerator:
             report_layout.loc["Resolution%", ('Regression', priority)] = f"{resolution_percentage:.2f}%"
 
 
+           
         # Calculate metrics for "Exploratory" category
         for priority in priorities:
             noise_issues = report_layout.loc['Noise', ('Exploratory', priority)]
             resolved_issues = report_layout.loc['Resolved', ('Exploratory', priority)]
 
-            noise_percentage = (noise_issues / resolved_issues) * 100
-            report_layout.loc["Noise%", ('Exploratory', priority)] = round(noise_percentage, 2)
+            # Check if the denominator is not zero before calculating noise_percentage
+            if resolved_issues != 0:
+                noise_percentage = (noise_issues / resolved_issues) * 100
+                report_layout.loc["Noise%", ('Exploratory', priority)] = f"{noise_percentage:.2f}%"
+            else:
+                report_layout.loc["Noise%", ('Exploratory', priority)] = '0.0%'  # Set to 0 if no resolved issues
 
             fixed_issues = report_layout.loc['Fixed', ('Exploratory', priority)]
             resolved_issues = report_layout.loc['Resolved', ('Exploratory', priority)]
             gerrit_issues = report_layout.loc['GerritFix', ('Exploratory', priority)]
 
-            fixed_percentage = (fixed_issues / resolved_issues) * 100
-            gerrit_percentage = (gerrit_issues / resolved_issues) * 100
+            # Check if the denominator is not zero before calculating percentages
+            if resolved_issues != 0:
+                fixed_percentage = (fixed_issues / resolved_issues) * 100
+                gerrit_percentage = (gerrit_issues / resolved_issues) * 100
 
-            report_layout.loc["Fixed%", ('Exploratory', priority)] = f"{fixed_percentage:.2f}%"   #fixed_percentage
-            report_layout.loc["Gerrit%", ('Exploratory', priority)] = f"{gerrit_percentage:.2f}%"  #gerrit_percentage
+                report_layout.loc["Fixed%", ('Exploratory', priority)] = f"{fixed_percentage:.2f}%"   # Fixed%
+                report_layout.loc["Gerrit%", ('Exploratory', priority)] = f"{gerrit_percentage:.2f}%"  # Gerrit%
+            else:
+                report_layout.loc["Fixed%", ('Exploratory', priority)] = '0.0%'  # Set to '0%' if no resolved issues
+                report_layout.loc["Gerrit%", ('Exploratory', priority)] = '0.0%'  # Set to '0%' if no resolved issues
 
             # Calculate Resolution% as Resolved / BugsRaised
             bugs_raised = report_layout.loc['BugsRaised', ('Exploratory', priority)]
@@ -167,36 +227,92 @@ class JiraReportGenerator:
 
             report_layout.loc["Resolution%", ('Exploratory', priority)] = f"{resolution_percentage:.2f}%"
 
+
     def calculate_average_defect_age(self, report_layout, resolved_defect_data, unresolved_defect_data):
-        priorities = ['Blocker', 'Critical', 'Others']
+        priority_groups = {
+            'Blocker': ['Blocker'],
+            'Critical': ['Critical'],
+            'Others': ['Major', 'Minor', 'Trivial']
+        }
 
-        for priority in priorities:
-            resolved_issues = [issue for issue in resolved_defect_data if issue['fields']['priority']['name'] == priority]
-            unresolved_issues = [issue for issue in unresolved_defect_data if issue['fields']['priority']['name'] == priority]
+        # Initialize dictionaries to store sums and counts for each priority group
+        resolved_defect_age_sums = {group: 0 for group in priority_groups}
+        unresolved_defect_age_sums = {group: 0 for group in priority_groups}
+        resolved_defect_counts = {group: 0 for group in priority_groups}
+        unresolved_defect_counts = {group: 0 for group in priority_groups}
 
-            resolved_defect_age_sum = 0
-            unresolved_defect_age_sum = 0
+        for issue in resolved_defect_data:
+            priority = issue['fields']['priority']['name']
+            created_date = datetime.strptime(issue['fields']['created'], "%Y-%m-%dT%H:%M:%S.%f%z")
+            resolved_date = datetime.strptime(issue['fields']['resolutiondate'], "%Y-%m-%dT%H:%M:%S.%f%z")
+            age = (resolved_date - created_date).days
+            for group, group_priorities in priority_groups.items():
+                if priority in group_priorities:
+                    resolved_defect_age_sums[group] += age
+                    resolved_defect_counts[group] += 1
 
-            for issue in resolved_issues:
-                created_date = datetime.strptime(issue['fields']['created'], "%Y-%m-%dT%H:%M:%S.%f%z")
-                resolved_date = datetime.strptime(issue['fields']['resolutiondate'], "%Y-%m-%dT%H:%M:%S.%f%z")
-                age = (resolved_date - created_date).days
-                resolved_defect_age_sum += age
+        for issue in unresolved_defect_data:
+            priority = issue['fields']['priority']['name']
+            created_date = datetime.strptime(issue['fields']['created'], "%Y-%m-%dT%H:%M:%S.%f%z")
+            age = (datetime.now(timezone.utc) - created_date).days
+            for group, group_priorities in priority_groups.items():
+                if priority in group_priorities:
+                    unresolved_defect_age_sums[group] += age
+                    unresolved_defect_counts[group] += 1
 
-            for issue in unresolved_issues:
-                created_date = datetime.strptime(issue['fields']['created'], "%Y-%m-%dT%H:%M:%S.%f%z")
-                age = (datetime.now(timezone.utc) - created_date).days
-                unresolved_defect_age_sum += age
+        for group in priority_groups:
+            resolved_defect_age_avg = resolved_defect_age_sums[group] / max(resolved_defect_counts[group], 1)
+            unresolved_defect_age_avg = unresolved_defect_age_sums[group] / max(unresolved_defect_counts[group], 1)
 
-            resolved_defect_age_avg = resolved_defect_age_sum / max(len(resolved_issues), 1)
-            unresolved_defect_age_avg = unresolved_defect_age_sum / max(len(unresolved_issues), 1)
+            report_layout.loc["Resolved-Defect", ('Regression', group)] = f"{resolved_defect_age_avg:.2f} "
+            report_layout.loc["Un-Resolved-Defect", ('Regression', group)] = f"{unresolved_defect_age_avg:.2f} "
 
-            report_layout.loc["Resolved-Defect", ('Regression', priority)] = f"{resolved_defect_age_avg:.2f} days"
-            report_layout.loc["Un-Resolved-Defect", ('Regression', priority)] = f"{unresolved_defect_age_avg:.2f} days"
+            # Separate calculation and assignment for "Exploratory"
+            report_layout.loc["Resolved-Defect", ('Exploratory', group)] = f"{resolved_defect_age_avg:.2f} "
+            report_layout.loc["Un-Resolved-Defect", ('Exploratory', group)] = f"{unresolved_defect_age_avg:.2f} "
 
-            report_layout.loc["Resolved-Defect", ('Exploratory', priority)] = f"{resolved_defect_age_avg:.2f} days"
-            report_layout.loc["Un-Resolved-Defect", ('Exploratory', priority)] = f"{unresolved_defect_age_avg:.2f} days"
+         # Calculate total averages for both "Regression" and "Exploratory"
+        total_resolved_regression_age_sum = sum(resolved_defect_age_sums[group] for group in priority_groups)
+        total_unresolved_regression_age_sum = sum(unresolved_defect_age_sums[group] for group in priority_groups)
+        total_resolved_regression_count = sum(resolved_defect_counts[group] for group in priority_groups)
+        total_unresolved_regression_count = sum(unresolved_defect_counts[group] for group in priority_groups)
 
+        total_resolved_regression_age_avg = total_resolved_regression_age_sum / max(total_resolved_regression_count, 1)
+        total_unresolved_regression_age_avg = total_unresolved_regression_age_sum / max(total_unresolved_regression_count, 1)
+
+        # Assign total averages to "Overall" in your layout
+        report_layout.loc["Resolved-Defect", ('Overall')] = f"{total_resolved_regression_age_avg:.2f}"
+        report_layout.loc["Un-Resolved-Defect", ('Overall')] = f"{total_unresolved_regression_age_avg:.2f}"
+
+        # Similarly, calculate and assign total averages for "Exploratory" in your layout
+        total_resolved_exploratory_age_sum = sum(resolved_defect_age_sums[group] for group in priority_groups)
+        total_unresolved_exploratory_age_sum = sum(unresolved_defect_age_sums[group] for group in priority_groups)
+        total_resolved_exploratory_count = sum(resolved_defect_counts[group] for group in priority_groups)
+        total_unresolved_exploratory_count = sum(unresolved_defect_counts[group] for group in priority_groups)
+
+        total_resolved_exploratory_age_avg = total_resolved_exploratory_age_sum / max(total_resolved_exploratory_count, 1)
+        total_unresolved_exploratory_age_avg = total_unresolved_exploratory_age_sum / max(total_unresolved_exploratory_count, 1)
+
+        report_layout.loc["Resolved-Defect", ('Overall')] = f"{total_resolved_exploratory_age_avg:.2f}"
+        report_layout.loc["Un-Resolved-Defect", ('Overall')] = f"{total_unresolved_exploratory_age_avg:.2f}"
+
+    def calculate_age(self, issue):
+        created_date_str = issue['fields']['created']
+        resolved_date_str = issue['fields'].get('resolutiondate')  # Use .get() to handle None
+        if resolved_date_str:
+            created_date = datetime.strptime(created_date_str, "%Y-%m-%dT%H:%M:%S.%f%z")
+            resolved_date = datetime.strptime(resolved_date_str, "%Y-%m-%dT%H:%M:%S.%f%z")
+            age = (resolved_date - created_date).days
+            return age
+        else:
+            # Handle the case where 'resolutiondate' is None (not resolved)
+            return 0  # You can choose an appropriate value for unresolved issues
+
+
+    
+
+    
+        return f"{age:.2f} days"
 
     def generate_report(self, start_date, end_date):
         try:
@@ -305,6 +421,16 @@ class JiraReportGenerator:
             # Calculate average defect age for unresolved issues
             self.calculate_average_defect_age(report_layout, resolved_defect_data, unresolved_defect_data)
 
+            # Calculate overall percentages for "Fixed%", "Gerrit%", and "Resolution%"
+            self.calculate_overall_metrics(report_layout) 
+
+            # Remove "days" from defect age values
+            report_layout = report_layout.applymap(lambda x: str(x).rstrip("days"))
+
+            # Handle "nan%" issue by replacing "nan" with an empty string
+            report_layout = report_layout.fillna('')
+
+
 
             print(report_layout)
             
@@ -328,7 +454,6 @@ class JiraReportGenerator:
 
         else:
             logging.error("Validation failed. Please check the errors in the log.")
-
 
 def main():
     logging.basicConfig(level=logging.ERROR)  # Configure logging
