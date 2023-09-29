@@ -4,10 +4,14 @@ import pandas as pd
 import logging
 from datetime import datetime , timezone
 import os
-import platform
-from windows_config import JSON_FILE_PATH, REPORT_FILE_PATH, JQL_QUERIES_FILE_PATH  
+from path_handler import adjust_path_for_os
 
 class JiraReportGenerator:
+
+    # Specify your download path and output Excel file path here
+    download_path = "/home/ANT.AMAZON.COM/avinaks/Downloads"
+    output_excel_file = os.path.join(download_path, "report", "output.xlsx")
+
     def __init__(self, api_url, auth, json_file_path):
 
         self.api_url = api_url
@@ -457,31 +461,13 @@ class JiraReportGenerator:
 
 def main():
     logging.basicConfig(level=logging.ERROR)  # Configure logging
-    json_file_path = "/home/ANT.AMAZON.COM/avinaks/Downloads/Report_Script/queries.json"
-
-    # Check the operating system
-    current_os = platform.system()
-
-    if current_os == "Windows":
-        # Use Windows-specific paths if it's Windows
-        json_file_path = JSON_FILE_PATH
-        report_filename = REPORT_FILE_PATH
-        jql_queries_filename = JQL_QUERIES_FILE_PATH
-    elif current_os == "Darwin":  # macOS
-        # Use macOS-specific paths if it's macOS
-        json_file_path = JSON_FILE_PATH
-        report_filename = REPORT_FILE_PATH
-        jql_queries_filename = JQL_QUERIES_FILE_PATH
-    else:
-        # Use default paths for other operating systems
-        json_file_path = "queries.json"
-        report_filename = "report.xlsx"
-        jql_queries_filename = "jql_queries.xlsx"
-
+    #json_file_path = "/home/ANT.AMAZON.COM/avinaks/Downloads/Report_Script/queries.json"
+    json_file_path = adjust_path_for_os("/home/ANT.AMAZON.COM/avinaks/Downloads/Report_Script/queries.json")
 
     api_credentials = None
     try:
-        with open(json_file_path, 'r') as json_file:
+        with open(adjust_path_for_os(json_file_path), 'r') as json_file:
+
             data = json.load(json_file)
             api_credentials = data["api_credentials"]
     except FileNotFoundError as e:
@@ -496,6 +482,11 @@ def main():
     api_url = api_credentials["api_url"]
 
     auth = (api_username, api_password)
+
+    # Print the Username and Adjusted Path from the path_handler module
+    print(f"Username: {os.getlogin()}")
+    print(f"Adjusted Path: {json_file_path}")
+
 
     jira_report_generator = JiraReportGenerator(api_url, auth, json_file_path)
     start_date = input("Enter start date (YYYY-MM-DD): ")
