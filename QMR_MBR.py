@@ -9,7 +9,7 @@ from path_handler import adjust_path_for_os
 class JiraReportGenerator:
 
     # Specify your download path and output Excel file path here
-    download_path = "/home/ANT.AMAZON.COM/avinaks/Downloads"
+    download_path = "add path"
     output_excel_file = os.path.join(download_path, "report", "output.xlsx")
 
     def __init__(self, api_url, auth, json_file_path):
@@ -310,7 +310,7 @@ class JiraReportGenerator:
             return age
         else:
             # Handle the case where 'resolutiondate' is None (not resolved)
-            return 0  # You can choose an appropriate value for unresolved issues
+            return 0  
 
 
     
@@ -461,8 +461,7 @@ class JiraReportGenerator:
 
 def main():
     logging.basicConfig(level=logging.ERROR)  # Configure logging
-    #json_file_path = "/home/ANT.AMAZON.COM/avinaks/Downloads/Report_Script/queries.json"
-    json_file_path = adjust_path_for_os("/home/ANT.AMAZON.COM/avinaks/Downloads/Report_Script/queries.json")
+    json_file_path = adjust_path_for_os("json path")
 
     api_credentials = None
     try:
